@@ -1,17 +1,111 @@
 data_source: "yahoo" # alpaca|yahoo
 mode: "paper"  # for alpaca paper|live
 ticker: "AAPL"
-start_date: "2020-01-01"
-end_date: "2023-01-01"
-interval: "1d"         # could be 1d, 1h, 15m, etc.
+start_date: "2024-01-01"  # Recent date for better intraday data availability
+end_date: "2024-08-22"   # Current date
 initial_cash: 100000
-strategy: "basic_ma"
-strategy_params:
-  fast_ma: 10
-  slow_ma: 50
+strategy: "multi_timeframe"
 
+# Trading costs and tax configuration
+trading_costs:
+  enabled: true
+  commission_per_trade: 0.99  # Fixed commission per trade (e.g., $0.99)
+  commission_rate: 0.0005     # Percentage commission (0.05%)
+  bid_ask_spread: 0.01        # Bid-ask spread as percentage (1%)
+  slippage: 0.02              # Slippage as percentage (2%)
+  margin_rate: 0.05           # Annual margin interest rate (5%)
+
+# Tax configuration
+tax_config:
+  enabled: true
+  short_term_rate: 0.37       # Short-term capital gains rate (37%)
+  long_term_rate: 0.20        # Long-term capital gains rate (20%)
+  holding_period_days: 365    # Days to qualify for long-term gains
+  tax_loss_harvesting: true   # Enable tax loss harvesting
+
+# Advanced ML Algorithms Configuration
+ml_algorithms:
+  enabled: true
+  
+  # PCA (Principal Component Analysis)
+  pca:
+    enabled: true
+    weight: 0.25              # Weight in ensemble (25%)
+    n_components: 5           # Number of principal components
+    lookback_period: 50       # Historical data points for PCA
+    variance_threshold: 0.95  # Cumulative variance to retain
+  
+  # ARIMA (AutoRegressive Integrated Moving Average)
+  arima:
+    enabled: true
+    weight: 0.25              # Weight in ensemble (25%)
+    order: [1, 1, 1]          # ARIMA(p,d,q) parameters
+    seasonal_order: [1, 1, 1, 12]  # Seasonal ARIMA parameters
+    forecast_steps: 5         # Number of steps to forecast ahead
+    confidence_level: 0.95    # Confidence interval
+  
+  # GARCH (Generalized Autoregressive Conditional Heteroskedasticity)
+  garch:
+    enabled: true
+    weight: 0.25              # Weight in ensemble (25%)
+    p: 1                      # GARCH lag order
+    q: 1                      # ARCH lag order
+    volatility_threshold: 0.02 # Volatility threshold for signals
+    forecast_horizon: 5       # Days ahead for volatility forecast
+  
+  # Ensemble configuration
+  ensemble:
+    enabled: true
+    weight: 0.25              # Weight for traditional indicators (25%)
+    combination_method: "weighted_average"  # weighted_average, voting, stacking
+    minimum_algorithms: 2     # Minimum algorithms needed for signal
+    confidence_threshold: 0.6 # Minimum confidence for trade execution
+
+# Multi-timeframe configuration
+timeframes: ["1d", "15m", "1h", "1mo"]  # All timeframes to analyze
+primary_timeframe: "1d"  # Used for data structure (not for signals anymore)
+
+# Majority voting configuration
+majority_voting:
+  enabled: true
+  minimum_timeframes: 1  # Minimum timeframes needed for a signal
+  require_majority: false  # Allow any timeframe to generate signals (for demo)
+  weight_by_strength: true  # Weight votes by signal strength
+
+# Strategy parameters with configurable rolling windows
+strategy_params:
+  # Moving Average parameters
+  fast_ma_windows: [5, 10, 15, 20]
+  slow_ma_windows: [20, 30, 50, 100]
+  
+  # RSI parameters
+  rsi_periods: [14, 21]
+  rsi_oversold: 30
+  rsi_overbought: 70
+  
+  # Bollinger Bands
+  bb_periods: [20, 30]
+  bb_std_devs: [2.0, 2.5]
+  
+  # ATR periods
+  atr_periods: [14, 21]
+  
+  # Support/Resistance lookback periods
+  support_resistance_periods: [20, 30, 50]
+  
+  # Ichimoku parameters
+  ichimoku_conversion: [9, 12]
+  ichimoku_base: [26, 30]
+  ichimoku_span_b: [52, 60]
+  
+  # MSE (Mean Squared Error) periods
+  mse_periods: [20, 30]
+  
+  # Signal confirmation requirements
+  min_timeframes_agree: 1  # Minimum timeframes that must agree for a signal
+  signal_strength_threshold: 0.5  # Minimum signal strength (0-1)
 
 alpaca:
-  key_id: "YOUR_ALPACA_KEY"
-  secret_key: "YOUR_ALPACA_SECRET"
+  key_id: "PKOOFJDSJAPGDGTOFIQ9"
+  secret_key: "fxMORdYJ4pelOfuMSR7zkbPlghS9c6QOdNPzw5fv"
   base_url: "https://paper-api.alpaca.markets"
