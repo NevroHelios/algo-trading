@@ -22,13 +22,13 @@ class MyStrategy:
                 "weight_by_strength": True,
             },
         )
-        
+
         # ML Algorithms configuration
         self.ml_config = params.get("ml_algorithms", {})
         self.ml_ensemble = None
         if self.ml_config.get("enabled", False):
             self.ml_ensemble = MLEnsemble(self.ml_config)
-        
+
         # Weight for traditional vs ML signals
         self.traditional_weight = self.ml_config.get("ensemble", {}).get("weight", 0.75)
 
@@ -314,43 +314,49 @@ class MyStrategy:
 
         # Get traditional signal
         traditional_signal = self._process_timeframe_signals(timeframe_signals)
-        
+
         # Get ML ensemble signal if enabled
         ml_signal = "HOLD"
         ml_strength = 0.0
         ml_reason = "ML disabled"
-        
+
         if self.ml_ensemble:
             try:
                 # Use primary timeframe data for ML analysis
                 primary_timeframe = row["_df_attrs"].get("primary_timeframe", "1d")
                 primary_df = timeframe_data.get(primary_timeframe)
-                
+
                 if primary_df is not None:
-                    ml_result = self.ml_ensemble.generate_ensemble_signal(primary_df, current_index)
+                    ml_result = self.ml_ensemble.generate_ensemble_signal(
+                        primary_df, current_index
+                    )
                     ml_signal = ml_result.get("signal", "HOLD")
                     ml_strength = ml_result.get("strength", 0.0)
                     ml_reason = ml_result.get("reason", "ML analysis")
-                    
+
                     print(f"\n🤖 ML ENSEMBLE ANALYSIS:")
                     print(f"ML Signal: {ml_signal} (strength: {ml_strength:.2f})")
                     print(f"ML Reason: {ml_reason}")
-                    
+
                     # Show individual algorithm results
                     if "algorithm_signals" in ml_result:
-                        for algo_name, algo_result in ml_result["algorithm_signals"].items():
-                            print(f"  {algo_name}: {algo_result['signal']} ({algo_result['strength']:.2f}) - {algo_result['reason']}")
-                            
+                        for algo_name, algo_result in ml_result[
+                            "algorithm_signals"
+                        ].items():
+                            print(
+                                f"  {algo_name}: {algo_result['signal']} ({algo_result['strength']:.2f}) - {algo_result['reason']}"
+                            )
+
             except Exception as e:
                 print(f"ML analysis error: {e}")
-        
+
         # Combine traditional and ML signals
         final_signal = self._combine_traditional_and_ml_signals(
             traditional_signal, ml_signal, ml_strength, ml_reason
         )
-        
+
         return final_signal
-    
+
     def _process_timeframe_signals(self, timeframe_signals):
         """Process traditional timeframe signals"""
         if not timeframe_signals:
@@ -387,9 +393,13 @@ class MyStrategy:
                 return "HOLD"
         else:
             if buy_count > 0 and sell_count > 0:
-                avg_buy_strength = sum(vote["strength"] for vote in buy_votes) / buy_count
-                avg_sell_strength = sum(vote["strength"] for vote in sell_votes) / sell_count
-                
+                avg_buy_strength = (
+                    sum(vote["strength"] for vote in buy_votes) / buy_count
+                )
+                avg_sell_strength = (
+                    sum(vote["strength"] for vote in sell_votes) / sell_count
+                )
+
                 if avg_buy_strength > avg_sell_strength:
                     return self._evaluate_signal_strength("BUY", buy_votes)
                 else:
@@ -400,44 +410,48 @@ class MyStrategy:
                 return self._evaluate_signal_strength("SELL", sell_votes)
             else:
                 return "HOLD"
-    
+
     def _evaluate_signal_strength(self, signal_type, votes):
         """Evaluate if signal meets strength threshold"""
         if self.majority_voting["weight_by_strength"]:
             avg_strength = sum(vote["strength"] for vote in votes) / len(votes)
         else:
             avg_strength = 1.0
-        
+
         if avg_strength >= self.signal_strength_threshold:
             return signal_type
         else:
             return "HOLD"
-    
-    def _combine_traditional_and_ml_signals(self, traditional_signal, ml_signal, ml_strength, ml_reason):
+
+    def _combine_traditional_and_ml_signals(
+        self, traditional_signal, ml_signal, ml_strength, ml_reason
+    ):
         """Combine traditional timeframe analysis with ML ensemble signals"""
         print(f"\n🔄 SIGNAL COMBINATION:")
         print(f"Traditional: {traditional_signal}")
         print(f"ML Ensemble: {ml_signal} (strength: {ml_strength:.2f})")
-        
+
         # Weight configuration
         traditional_weight = self.traditional_weight
         ml_weight = 1.0 - traditional_weight
-        
+
         # Simple voting combination
         signals = []
         if traditional_signal != "HOLD":
             signals.append(("traditional", traditional_signal, traditional_weight))
         if ml_signal != "HOLD" and ml_strength >= 0.3:  # Minimum ML confidence
             signals.append(("ml", ml_signal, ml_weight * ml_strength))
-        
+
         if not signals:
             print("Final Decision: HOLD (no strong signals)")
             return "HOLD"
-        
+
         # Calculate weighted scores
         buy_score = sum(weight for source, signal, weight in signals if signal == "BUY")
-        sell_score = sum(weight for source, signal, weight in signals if signal == "SELL")
-        
+        sell_score = sum(
+            weight for source, signal, weight in signals if signal == "SELL"
+        )
+
         # Make final decision
         if buy_score > sell_score and buy_score >= 0.4:
             final_signal = "BUY"
@@ -447,8 +461,10 @@ class MyStrategy:
             print(f"Final Decision: SELL (score: {sell_score:.2f})")
         else:
             final_signal = "HOLD"
-            print(f"Final Decision: HOLD (buy: {buy_score:.2f}, sell: {sell_score:.2f})")
-        
+            print(
+                f"Final Decision: HOLD (buy: {buy_score:.2f}, sell: {sell_score:.2f})"
+            )
+
         return final_signal
 
     def _generate_multi_timeframe_signal(self, row):

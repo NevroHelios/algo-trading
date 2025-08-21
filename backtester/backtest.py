@@ -11,16 +11,18 @@ def run_backtest(config_path="config/config.yaml"):
 
     # Pass full config to strategy, not just strategy_params
     strategy_config = config["strategy_params"].copy()
-    strategy_config.update({
-        "ml_algorithms": config.get("ml_algorithms", {}),
-        "majority_voting": config.get("majority_voting", {})
-    })
-    
+    strategy_config.update(
+        {
+            "ml_algorithms": config.get("ml_algorithms", {}),
+            "majority_voting": config.get("majority_voting", {}),
+        }
+    )
+
     strat_module = importlib.import_module(f"strategies.{config['strategy']}")
     strategy = strat_module.MyStrategy(strategy_config)
 
     executor = Executor(config)
-    
+
     # Use enhanced portfolio with tax and fee calculations
     portfolio = EnhancedPortfolio(config["initial_cash"], config)
 
