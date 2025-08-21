@@ -29,7 +29,7 @@ class Trade:
         )
 
     def __repr__(self):
-        return f"Trade({self.action}, {self.quantity}@${self.price:.2f}, fees=${self.fees:.2f})"
+        return f"Trade({self.action}, {self.quantity}@₹{self.price:.2f}, fees=₹{self.fees:.2f})"
 
 
 class TaxLot:
@@ -65,8 +65,15 @@ class EnhancedPortfolio:
 
         # Tax configuration
         self.tax_config = config.get("tax_config", {})
-        self.short_term_rate = self.tax_config.get("short_term_rate", 0.37)
-        self.long_term_rate = self.tax_config.get("long_term_rate", 0.20)
+        self.short_term_rate = self.tax_config.get(
+            "short_term_rate", 0.15
+        )  # 15% for India STCG
+        self.long_term_rate = self.tax_config.get(
+            "long_term_rate", 0.10
+        )  # 10% for India LTCG
+        self.ltcg_exemption_limit = self.tax_config.get(
+            "ltcg_exemption_limit", 100000
+        )  # ₹1 lakh exemption
         self.holding_period_days = self.tax_config.get("holding_period_days", 365)
         self.tax_loss_harvesting = self.tax_config.get("tax_loss_harvesting", False)
 
@@ -87,19 +94,54 @@ class EnhancedPortfolio:
     def calculate_trading_costs(
         self, action: str, quantity: int, price: float
     ) -> float:
-        """Calculate total trading costs including commission, spread, and slippage"""
+        """Calculate total trading costs for Indian equity delivery trading"""
         gross_amount = quantity * price
 
-        # Commission costs
-        commission = self.commission_per_trade + (gross_amount * self.commission_rate)
+        # 1. Brokerage - Zero for equity delivery
+        brokerage = self.commission_per_trade + (gross_amount * self.commission_rate)
 
-        # Bid-ask spread cost (affects both buy and sell)
+        # 2. STT (Securities Transaction Tax)
+        if action == "BUY":
+            stt = gross_amount * self.trading_costs.get("stt_rate_buy", 0.001)
+        else:  # SELL
+            stt = gross_amount * self.trading_costs.get("stt_rate_sell", 0.001)
+
+        # 3. Transaction charges (NSE: 0.00297%)
+        transaction_charges = gross_amount * self.trading_costs.get(
+            "transaction_charges", 0.0000297
+        )
+
+        # 4. SEBI charges (₹10 per crore)
+        sebi_charges_per_crore = self.trading_costs.get("sebi_charges_per_crore", 10.0)
+        sebi_charges = (
+            gross_amount / 10000000
+        ) * sebi_charges_per_crore  # Convert to crores
+
+        # 5. Stamp charges (0.015% on buy side only)
+        if action == "BUY":
+            stamp_charges = gross_amount * self.trading_costs.get(
+                "stamp_charges_buy", 0.00015
+            )
+        else:
+            stamp_charges = 0.0
+
+        # 6. GST (18% on brokerage + SEBI charges + transaction charges)
+        taxable_amount = brokerage + sebi_charges + transaction_charges
+        gst_rate = self.trading_costs.get("gst_rate", 0.18)
+        gst = taxable_amount * gst_rate
+
+        # 7. Market impact costs
         spread_cost = gross_amount * self.bid_ask_spread / 2
-
-        # Slippage cost (market impact)
         slippage_cost = gross_amount * self.slippage / 2
 
-        total_costs = commission + spread_cost + slippage_cost
+        # Total regulatory costs
+        regulatory_costs = (
+            stt + transaction_charges + sebi_charges + stamp_charges + gst + brokerage
+        )
+
+        # Total costs including market impact
+        total_costs = regulatory_costs + spread_cost + slippage_cost
+
         return total_costs
 
     def calculate_effective_price(self, action: str, market_price: float) -> float:
@@ -262,9 +304,14 @@ class EnhancedPortfolio:
         self._calculate_taxes()
 
     def _calculate_taxes(self):
-        """Calculate taxes owed on realized gains"""
+        """Calculate taxes owed on realized gains (India tax structure)"""
+        # Short-term capital gains tax (15% in India)
         short_term_tax = max(0, self.short_term_gains * self.short_term_rate)
-        long_term_tax = max(0, self.long_term_gains * self.long_term_rate)
+
+        # Long-term capital gains tax (10% in India, with ₹1 lakh exemption)
+        taxable_ltcg = max(0, self.long_term_gains - self.ltcg_exemption_limit)
+        long_term_tax = max(0, taxable_ltcg * self.long_term_rate)
+
         self.total_taxes_paid = short_term_tax + long_term_tax
 
     def get_current_value(self, current_price: float) -> float:
@@ -312,26 +359,26 @@ class EnhancedPortfolio:
         print(f"{'=' * 60}")
 
         print(f"\n📊 PERFORMANCE METRICS:")
-        print(f"Initial cash: ${self.initial_cash:,.2f}")
-        print(f"Current cash: ${self.cash:,.2f}")
+        print(f"Initial cash: ₹{self.initial_cash:,.2f}")
+        print(f"Current cash: ₹{self.cash:,.2f}")
         print(f"Position: {self.position} shares")
-        print(f"Portfolio value (before tax): ${current_value:,.2f}")
-        print(f"Portfolio value (after tax): ${after_tax_value:,.2f}")
-        print(f"Total return (before tax): ${total_return:,.2f} ({return_pct:+.2f}%)")
+        print(f"Portfolio value (before tax): ₹{current_value:,.2f}")
+        print(f"Portfolio value (after tax): ₹{after_tax_value:,.2f}")
+        print(f"Total return (before tax): ₹{total_return:,.2f} ({return_pct:+.2f}%)")
         print(
-            f"Total return (after tax): ${after_tax_return:,.2f} ({after_tax_return_pct:+.2f}%)"
+            f"Total return (after tax): ₹{after_tax_return:,.2f} ({after_tax_return_pct:+.2f}%)"
         )
 
         print(f"\n💰 GAINS/LOSSES:")
-        print(f"Realized gains: ${self.realized_gains:,.2f}")
-        print(f"Unrealized gains: ${self.unrealized_gains:,.2f}")
-        print(f"Short-term gains: ${self.short_term_gains:,.2f}")
-        print(f"Long-term gains: ${self.long_term_gains:,.2f}")
+        print(f"Realized gains: ₹{self.realized_gains:,.2f}")
+        print(f"Unrealized gains: ₹{self.unrealized_gains:,.2f}")
+        print(f"Short-term gains: ₹{self.short_term_gains:,.2f}")
+        print(f"Long-term gains: ₹{self.long_term_gains:,.2f}")
 
         print(f"\n💸 COSTS & TAXES:")
-        print(f"Total fees paid: ${self.total_fees_paid:,.2f}")
-        print(f"Total taxes paid: ${self.total_taxes_paid:,.2f}")
-        print(f"Cost impact: ${self.total_fees_paid + self.total_taxes_paid:,.2f}")
+        print(f"Total fees paid: ₹{self.total_fees_paid:,.2f}")
+        print(f"Total taxes paid: ₹{self.total_taxes_paid:,.2f}")
+        print(f"Cost impact: ₹{self.total_fees_paid + self.total_taxes_paid:,.2f}")
 
         print(f"\n📈 TRADING STATISTICS:")
         print(
@@ -349,7 +396,7 @@ class EnhancedPortfolio:
         # Cost analysis
         if len(self.trades) > 0:
             avg_cost_per_trade = self.total_fees_paid / len(self.trades)
-            print(f"Average cost per trade: ${avg_cost_per_trade:.2f}")
+            print(f"Average cost per trade: ₹{avg_cost_per_trade:.2f}")
 
         print(f"\n📊 TAX EFFICIENCY:")
         if self.realized_gains != 0:
@@ -375,7 +422,7 @@ class EnhancedPortfolio:
                     else "Short-term"
                 )
                 print(
-                    f"  Lot {i + 1}: {lot.quantity} shares @ ${lot.cost_basis:.2f} ({days_held} days, {status})"
+                    f"  Lot {i + 1}: {lot.quantity} shares @ ₹{lot.cost_basis:.2f} ({days_held} days, {status})"
                 )
 
         print(f"\n{'=' * 60}")

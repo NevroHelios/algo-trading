@@ -43,11 +43,11 @@ class Portfolio:
         return_pct = (total_return / self.initial_cash) * 100
 
         print(f"\n=== PORTFOLIO SUMMARY ===")
-        print(f"Initial cash: ${self.initial_cash:,.2f}")
-        print(f"Final cash: ${self.cash:,.2f}")
+        print(f"Initial cash: ₹{self.initial_cash:,.2f}")
+        print(f"Final cash: ₹{self.cash:,.2f}")
         print(f"Final position: {self.position} shares")
-        print(f"Portfolio value: ${current_value:,.2f}")
-        print(f"Total return: ${total_return:,.2f} ({return_pct:+.2f}%)")
+        print(f"Portfolio value: ₹{current_value:,.2f}")
+        print(f"Total return: ₹{total_return:,.2f} ({return_pct:+.2f}%)")
         print(
             f"Total trades: {len(self.history)} (Buy: {self.buy_count}, Sell: {self.sell_count})"
         )
@@ -55,7 +55,7 @@ class Portfolio:
         if len(self.history) > 1:
             print(f"\nTrade History (last 10):")
             for i, (action, price, index) in enumerate(self.history[-10:]):
-                print(f"  {i + 1}: {action} at ${price:.2f}")
+                print(f"  {i + 1}: {action} at ₹{price:.2f}")
 
         # Calculate some basic metrics
         if self.buy_count > 0 and self.sell_count > 0:
@@ -67,8 +67,8 @@ class Portfolio:
             if buy_prices and sell_prices:
                 avg_buy = sum(buy_prices) / len(buy_prices)
                 avg_sell = sum(sell_prices) / len(sell_prices)
-                print(f"Average buy price: ${avg_buy:.2f}")
-                print(f"Average sell price: ${avg_sell:.2f}")
+                print(f"Average buy price: ₹{avg_buy:.2f}")
+                print(f"Average sell price: ₹{avg_sell:.2f}")
                 if avg_buy > 0:
                     avg_trade_return = ((avg_sell - avg_buy) / avg_buy) * 100
                     print(f"Average trade return: {avg_trade_return:+.2f}%")

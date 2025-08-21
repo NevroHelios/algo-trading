@@ -6,24 +6,88 @@ from backtester.executor import Executor
 
 
 def run_backtest(config_path="config/config.yaml"):
-    config = yaml.safe_load(open(config_path))
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
     data = get_data(config)
 
-    # Pass full config to strategy, not just strategy_params
-    strategy_config = config["strategy_params"].copy()
-    strategy_config.update(
-        {
-            "ml_algorithms": config.get("ml_algorithms", {}),
-            "majority_voting": config.get("majority_voting", {}),
-        }
-    )
+    # Initialize strategy based on type
+    strategy_name = config["strategy"]
 
-    strat_module = importlib.import_module(f"strategies.{config['strategy']}")
-    strategy = strat_module.MyStrategy(strategy_config)
+    if strategy_name == "statistical_clusters":
+        # Import and initialize statistical clusters strategy
+        from strategies.statistical_clusters_strategy import StatisticalClustersStrategy
 
+        strategy = StatisticalClustersStrategy(config)
+
+        # For statistical clusters, we need all timeframe data
+        print(f"Starting Statistical Clusters backtest:")
+        print(f"Initial Capital: ₹{config['initial_cash']:,.2f}")
+
+        # Run statistical clusters backtest
+        run_statistical_clusters_backtest(strategy, data, config)
+
+    else:
+        # Original multi-timeframe strategy
+        strategy_config = config["strategy_params"].copy()
+        strategy_config.update(
+            {
+                "ml_algorithms": config.get("ml_algorithms", {}),
+                "majority_voting": config.get("majority_voting", {}),
+            }
+        )
+
+        strat_module = importlib.import_module(f"strategies.{config['strategy']}")
+        strategy = strat_module.MyStrategy(strategy_config)
+
+        # Run original backtest
+        run_original_backtest(strategy, data, config)
+
+
+def run_statistical_clusters_backtest(strategy, data, config):
+    """Run backtest for statistical clusters strategy"""
     executor = Executor(config)
+    portfolio = EnhancedPortfolio(config["initial_cash"], config)
 
-    # Use enhanced portfolio with tax and fee calculations
+    print(f"Data points available: {len(data)}")
+
+    signals_generated = 0
+    trades_executed = 0
+
+    # For statistical clusters, we pass the full DataFrame
+    for i in range(50, len(data)):  # Start after sufficient data for analysis
+        # Get current slice of data up to current point
+        current_data = {config.get("primary_timeframe", "1d"): data.iloc[: i + 1]}
+
+        signal = strategy.generate_signal(current_data)
+
+        if signal != "HOLD":
+            signals_generated += 1
+
+        # Get current row for portfolio update
+        current_row = data.iloc[i].to_dict()
+
+        if config["data_source"] == "yahoo":
+            if portfolio.update(signal, current_row):
+                trades_executed += 1
+        else:
+            if signal != "HOLD":
+                current_price = data.iloc[i]["Close"]
+                executor.execute(signal, current_price, config["ticker"])
+                trades_executed += 1
+
+    print(f"\nStatistical Clusters Backtest completed:")
+    print(f"Signals generated: {signals_generated}")
+    print(f"Trades executed: {trades_executed}")
+
+    if config["data_source"] == "yahoo":
+        portfolio.summary()
+    else:
+        print(f"Live trading session completed")
+
+
+def run_original_backtest(strategy, data, config):
+    """Run backtest for original multi-timeframe strategy"""
+    executor = Executor(config)
     portfolio = EnhancedPortfolio(config["initial_cash"], config)
 
     print(f"Starting backtest with {len(data)} data points")
@@ -56,12 +120,12 @@ def run_backtest(config_path="config/config.yaml"):
                 executor.execute(signal, row.Close, config["ticker"])
                 trades_executed += 1
 
+    print(f"\nBacktest completed:")
+    print(f"Signals generated: {signals_generated}")
+    print(f"Trades executed: {trades_executed}")
+
     if config["data_source"] == "yahoo":
-        print(f"\nBacktest completed:")
-        print(f"Signals generated: {signals_generated}")
-        print(f"Trades executed: {trades_executed}")
         portfolio.summary()
     else:
-        print(f"\nLive trading session completed:")
-        print(f"Signals generated: {signals_generated}")
+        print(f"Live trading session completed:")
         print(f"Orders sent: {trades_executed}")
