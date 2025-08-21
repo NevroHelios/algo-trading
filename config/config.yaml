@@ -1,0 +1,10 @@
+data_source: "yahoo"
+ticker: "AAPL"
+start_date: "2020-01-01"
+end_date: "2023-01-01"
+interval: "1d"         # could be 1d, 1h, 15m, etc.
+initial_cash: 100000
+strategy: "basic_ma"
+strategy_params:
+  fast_ma: 10
+  slow_ma: 50

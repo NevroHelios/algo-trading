@@ -1,0 +1,13 @@
+[project]
+name = "quant-trading"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "colorama>=0.4.6",
+    "pandas-stubs>=2.3.0.250703",
+    "pyyaml>=6.0.2",
+    "types-pyyaml>=6.0.12.20250809",
+    "yfinance>=0.2.65",
+]
