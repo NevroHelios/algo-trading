@@ -2,6 +2,7 @@ import yaml
 import importlib
 from backtester.data_handler import get_data
 from backtester.portfolio import Portfolio
+from backtester.executor import Executor
 
 def run_backtest(config_path="config/config.yaml"):
     config = yaml.safe_load(open(config_path))
@@ -9,11 +10,16 @@ def run_backtest(config_path="config/config.yaml"):
 
     strat_module = importlib.import_module(f"strategies.{config['strategy']}")
     strategy = strat_module.MyStrategy(config["strategy_params"])
+
+    executor = Executor(config)
     portfolio = Portfolio(config["initial_cash"])
 
     for row in data.itertuples():
-        row = row._asdict() # type: ignore
-        signal = strategy.generate_signal(row)
-        portfolio.update(signal, row)
+        signal = strategy.generate_signal(row._asdict()) # type: ignore
+        if config["data_source"] == "yahoo":
+            portfolio.update(signal, row._asdict()) # type: ignore
+        else:
+            executor.execute(signal, row.Close, config["ticker"])
 
-    portfolio.summary()
+    if config["data_source"] == "yahoo":
+        portfolio.summary()

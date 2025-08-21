@@ -1,4 +1,5 @@
-data_source: "yahoo"
+data_source: "yahoo" # alpaca|yahoo
+mode: "paper"  # for alpaca paper|live
 ticker: "AAPL"
 start_date: "2020-01-01"
 end_date: "2023-01-01"
@@ -8,3 +9,9 @@ strategy: "basic_ma"
 strategy_params:
   fast_ma: 10
   slow_ma: 50
+
+
+alpaca:
+  key_id: "YOUR_ALPACA_KEY"
+  secret_key: "YOUR_ALPACA_SECRET"
+  base_url: "https://paper-api.alpaca.markets"
