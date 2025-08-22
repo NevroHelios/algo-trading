@@ -15,4 +15,5 @@ dependencies = [
     "statsmodels>=0.14.5",
     "types-pyyaml>=6.0.12.20250809",
     "yfinance>=0.2.65",
+    "vaderSentiment>=3.3.2",
 ]

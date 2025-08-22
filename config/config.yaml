@@ -1,449 +1,346 @@
-data_source: "yahoo" # alpaca|yahoo
-mode: "paper"  # for alpaca paper|live
-ticker: "RELIANCE.NS"
-start_date: "2023-06-01"  # Recent date for better intraday data availability
-end_date: "2024-08-22"   # Current date
-initial_cash: 200000  # ₹2 lakhs initial capital
-strategy: "statistical_clusters"  # New cluster-based strategy
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# STATISTICAL METHOD CLUSTERS CONFIGURATION
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# Strategy Selection
+data_source: yahoo
+mode: paper
+ticker: RELIANCE.NS
+start_date: '2023-06-01'
+end_date: '2024-08-22'
+initial_cash: 200000
+strategy: statistical_clusters
 cluster_strategy:
-  mode: "predefined"  # "predefined", "custom", "multi_timeframe"
-  predefined_strategy: "adaptive_trend"  # "pairs_trading", "volatility_breakout", "factor_portfolio", "adaptive_trend"
-  
-  # Custom cluster selection (when mode = "custom")
-  custom_clusters: ["cluster_1", "cluster_7"]  # Select which clusters to use
-  
-  # Cluster weights (for ensemble combination)
+  mode: predefined
+  predefined_strategy: adaptive_trend
+  news_integration:
+    enabled: true
+    csv_path: data/news.csv
+    window_hours: 24
+    min_items: 3
+    weight: 0.15
+    bullish_threshold: 0.25
+    bearish_threshold: -0.25
+  custom_clusters:
+  - cluster_1
+  - cluster_7
   cluster_weights:
-    cluster_1: 0.25  # Mean Reversion / Pairs Trading
-    cluster_2: 0.20  # Momentum & Trend Following
-    cluster_3: 0.15  # Volatility Trading
-    cluster_4: 0.20  # Multi-Factor / Statistical Arbitrage
-    cluster_5: 0.10  # Regime Detection & Adaptive Strategies
-    cluster_6: 0.05  # Execution & Microstructure-Aware Trading
+    cluster_1: 0.25
+    cluster_2: 0.2
+    cluster_3: 0.15
+    cluster_4: 0.2
+    cluster_5: 0.1
+    cluster_6: 0.05
     cluster_7: 0.1
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# TRADING COSTS AND TAX CONFIGURATION (INDIA)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# Trading costs and tax configuration (India - Equity Delivery)
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CLUSTER 1: Mean Reversion / Pairs Trading
-# ═══════════════════════════════════════════════════════════════════════════════
 cluster_1_mean_reversion:
   enabled: true
-  
-  # Cointegration tests
   cointegration:
     enabled: true
-    method: "engle_granger"  # "engle_granger", "johansen"
+    method: engle_granger
     significance_level: 0.05
-    lookback_period: 252  # 1 year of daily data
-    
-  # Stationarity tests
+    lookback_period: 252
   stationarity:
     enabled: true
-    adf_test: true  # Augmented Dickey-Fuller test
-    kpss_test: true  # Kwiatkowski-Phillips-Schmidt-Shin test
-    
-  # Kalman Filter for dynamic hedge ratios
+    adf_test: true
+    kpss_test: true
   kalman_filter:
     enabled: true
     transition_covariance: 0.01
     observation_covariance: 1.0
-    
-  # Statistical validation
   validation:
     t_test: true
     bootstrap_samples: 1000
     confidence_level: 0.95
-    
-  # Trading parameters
-  entry_threshold: 2.0  # Z-score for entry
-  exit_threshold: 0.5   # Z-score for exit
-  stop_loss: -3.0       # Z-score for stop loss
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CLUSTER 2: Momentum & Trend Following
-# ═══════════════════════════════════════════════════════════════════════════════
+  entry_threshold: 2.0
+  exit_threshold: 0.5
+  stop_loss: -3.0
 cluster_2_momentum:
   enabled: true
-  
-  # Autocorrelation analysis
   autocorrelation:
     enabled: true
     max_lags: 20
     significance_level: 0.05
-    
-  # ARIMA modeling
   arima:
     enabled: true
-    auto_arima: true  # Automatic order selection
+    auto_arima: true
     max_p: 5
     max_d: 2
     max_q: 5
     seasonal: false
     forecast_steps: 5
-    
-  # Granger causality
   granger_causality:
     enabled: true
     max_lags: 10
     significance_level: 0.05
-    
-  # Performance metrics
   performance_metrics:
     sharpe_ratio: true
     sortino_ratio: true
     calmar_ratio: true
     min_periods: 30
-    
-  # Momentum parameters
   lookback_period: 20
-  momentum_threshold: 0.02  # 2% momentum threshold
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CLUSTER 3: Volatility Trading
-# ═══════════════════════════════════════════════════════════════════════════════
+  momentum_threshold: 0.02
 cluster_3_volatility:
   enabled: true
-  
-  # GARCH models
   garch:
     enabled: true
-    model_type: "GARCH"  # "GARCH", "EGARCH", "TGARCH"
-    p: 1  # GARCH lag order
-    q: 1  # ARCH lag order
+    model_type: GARCH
+    p: 1
+    q: 1
     forecast_horizon: 5
-    
-  # Markov Switching Models
   markov_switching:
     enabled: true
-    n_regimes: 2  # Low-vol vs High-vol
+    n_regimes: 2
     switching_variance: true
-    
-  # Risk metrics
   risk_metrics:
-    var_confidence: 0.05  # 5% VaR
-    cvar_confidence: 0.05  # 5% CVaR
-    
-  # Monte Carlo simulation
+    var_confidence: 0.05
+    cvar_confidence: 0.05
   monte_carlo:
     enabled: true
     n_simulations: 10000
     forecast_horizon: 30
-    
-  # Volatility parameters
   vol_lookback: 30
-  vol_threshold_low: 0.15   # 15% annualized
-  vol_threshold_high: 0.35  # 35% annualized
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CLUSTER 4: Multi-Factor / Statistical Arbitrage
-# ═══════════════════════════════════════════════════════════════════════════════
+  vol_threshold_low: 0.15
+  vol_threshold_high: 0.35
 cluster_4_multi_factor:
   enabled: true
-  
-  # Principal Component Analysis
   pca:
     enabled: true
     n_components: 5
     variance_threshold: 0.95
-    
-  # Independent Component Analysis
   ica:
     enabled: true
     n_components: 5
-    
-  # Factor models
   factor_models:
     fama_french: true
     carhart_momentum: true
-    custom_factors: ["momentum", "value", "quality"]
-    
-  # Bayesian inference
+    custom_factors:
+    - momentum
+    - value
+    - quality
   bayesian:
     enabled: true
     prior_precision: 1.0
-    update_frequency: 20  # days
-    
-  # Portfolio optimization
+    update_frequency: 20
   optimization:
-    method: "mean_variance"  # "mean_variance", "risk_parity", "black_litterman"
-    rebalance_frequency: 20  # days
-    max_weight: 0.10  # 10% max weight per asset
-    min_weight: 0.01  # 1% min weight per asset
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CLUSTER 5: Regime Detection & Adaptive Strategies
-# ═══════════════════════════════════════════════════════════════════════════════
+    method: mean_variance
+    rebalance_frequency: 20
+    max_weight: 0.1
+    min_weight: 0.01
 cluster_5_regime_detection:
   enabled: true
-  
-  # Hidden Markov Models
   hmm:
     enabled: true
-    n_states: 3  # Bull, Bear, Sideways
-    covariance_type: "full"
-    
-  # State-Space Models
+    n_states: 3
+    covariance_type: full
   state_space:
     enabled: true
     kalman_filter: true
-    
-  # Regime switching
   markov_switching:
     enabled: true
     n_regimes: 2
     switching_mean: true
     switching_variance: true
-    
-  # Walk-forward analysis
   walk_forward:
     enabled: true
-    train_period: 252  # 1 year training
-    test_period: 63    # 3 months testing
-    step_size: 21      # 1 month steps
-    
-  # Adaptation parameters
-  regime_threshold: 0.7  # Confidence threshold for regime change
-  adaptation_speed: 0.1  # How quickly to adapt (0-1)
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CLUSTER 6: Execution & Microstructure-Aware Trading
-# ═══════════════════════════════════════════════════════════════════════════════
+    train_period: 252
+    test_period: 63
+    step_size: 21
+  regime_threshold: 0.7
+  adaptation_speed: 0.1
 cluster_6_execution:
   enabled: true
-  
-  # Order book analysis
   order_book:
-    enabled: false  # Requires Level 2 data
+    enabled: false
     imbalance_threshold: 0.6
-    
-  # Execution algorithms
   execution_algos:
     vwap: true
     twap: true
-    participation_rate: 0.1  # 10% of volume
-    
-  # Market impact models
+    participation_rate: 0.1
   market_impact:
-    kyle_lambda: 0.001  # Price impact parameter
+    kyle_lambda: 0.001
     almgren_chriss: true
-    
-  # Slippage analysis
   slippage:
     enabled: true
-    distribution_model: "normal"  # "normal", "t_student"
+    distribution_model: normal
     confidence_interval: 0.95
-    
-  # Execution parameters
-  max_order_size: 1000000  # ₹10 lakhs max order
-  min_order_size: 10000    # ₹10,000 min order
-  participation_limit: 0.25  # 25% of daily volume
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CLUSTER 7: Robustness & Validation
-# ═══════════════════════════════════════════════════════════════════════════════
+  max_order_size: 1000000
+  min_order_size: 10000
+  participation_limit: 0.25
 cluster_7_validation:
   enabled: true
-  
-  # Bootstrap resampling
   bootstrap:
     enabled: true
     n_samples: 1000
-    block_size: 20  # Block bootstrap for time series
-    
-  # Statistical tests
+    block_size: 20
   statistical_tests:
     whites_reality_check: true
     hansen_spa_test: true
     significance_level: 0.05
-    
-  # Out-of-sample testing
   out_of_sample:
     enabled: true
-    test_ratio: 0.3  # 30% for out-of-sample
+    test_ratio: 0.3
     rolling_window: true
-    
-  # Performance monitoring
   performance_monitoring:
     rolling_sharpe: true
     rolling_drawdown: true
-    window_size: 60  # days
-    alert_threshold: -0.1  # -10% drawdown alert
-    
-  # Robustness parameters
+    window_size: 60
+    alert_threshold: -0.1
   stress_test_scenarios: 5
   confidence_level: 0.95
   monte_carlo_runs: 1000
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PREDEFINED STRATEGY COMBINATIONS
-# ═══════════════════════════════════════════════════════════════════════════════
 predefined_strategies:
-  
-  # Strategy 1: Pairs Trading System
   pairs_trading:
-    active_clusters: ["cluster_1", "cluster_7"]
-    description: "Mean reversion with robust validation"
+    active_clusters:
+    - cluster_1
+    - cluster_7
+    description: Mean reversion with robust validation
     cluster_weights:
       cluster_1: 0.9
       cluster_7: 0.1
-      
-  # Strategy 2: Volatility Breakout System  
   volatility_breakout:
-    active_clusters: ["cluster_3", "cluster_5", "cluster_7"]
-    description: "Volatility trading with regime detection"
+    active_clusters:
+    - cluster_3
+    - cluster_5
+    - cluster_7
+    description: Volatility trading with regime detection
     cluster_weights:
       cluster_3: 0.7
       cluster_5: 0.2
       cluster_7: 0.1
-      
-  # Strategy 3: Factor Portfolio
   factor_portfolio:
-    active_clusters: ["cluster_4", "cluster_7"]
-    description: "Multi-factor statistical arbitrage"
+    active_clusters:
+    - cluster_4
+    - cluster_7
+    description: Multi-factor statistical arbitrage
     cluster_weights:
       cluster_4: 0.9
       cluster_7: 0.1
-      
-  # Strategy 4: Adaptive Trend Following
   adaptive_trend:
-    active_clusters: ["cluster_2", "cluster_5", "cluster_7"]
-    description: "Momentum with adaptive regime detection"
+    active_clusters:
+    - cluster_2
+    - cluster_5
+    - cluster_7
+    description: Momentum with adaptive regime detection
     cluster_weights:
       cluster_2: 0.6
       cluster_5: 0.3
       cluster_7: 0.1
 trading_costs:
   enabled: true
-  # Brokerage - Zero for delivery trading in India
-  commission_per_trade: 0.0   # Zero brokerage for equity delivery
-  commission_rate: 0.0        # Zero percentage commission for delivery
-  
-  # STT (Securities Transaction Tax) - 0.1% on buy & sell
-  stt_rate_buy: 0.001         # 0.1% STT on buy side
-  stt_rate_sell: 0.001        # 0.1% STT on sell side
-  
-  # Transaction charges - NSE: 0.00297%, BSE: 0.00375% (using NSE)
-  transaction_charges: 0.0000297  # 0.00297% for NSE
-  
-  # SEBI charges - ₹10 per crore
-  sebi_charges_per_crore: 10.0    # ₹10 per crore
-  
-  # Stamp charges - 0.015% or ₹1500/crore on buy side
-  stamp_charges_buy: 0.00015      # 0.015% on buy side
-  stamp_charges_sell: 0.0         # No stamp charges on sell
-  
-  # GST - 18% on (brokerage + SEBI charges + transaction charges)
-  gst_rate: 0.18              # 18% GST
-  
-  # Market impact costs
-  bid_ask_spread: 0.005       # 0.5% bid-ask spread (conservative)
-  slippage: 0.01              # 1% slippage (conservative)
-  margin_rate: 0.08           # 8% annual margin interest rate (India)
-
-# Tax configuration (India)
+  commission_per_trade: 0.0
+  commission_rate: 0.0
+  stt_rate_buy: 0.001
+  stt_rate_sell: 0.001
+  transaction_charges: 2.97e-05
+  sebi_charges_per_crore: 10.0
+  stamp_charges_buy: 0.00015
+  stamp_charges_sell: 0.0
+  gst_rate: 0.18
+  bid_ask_spread: 0.005
+  slippage: 0.01
+  margin_rate: 0.08
 tax_config:
   enabled: true
-  # Capital gains tax rates in India
-  short_term_rate: 0.15       # 15% STCG tax for equity (held < 1 year)
-  long_term_rate: 0.10        # 10% LTCG tax for equity (held >= 1 year, gains > ₹1 lakh)
-  ltcg_exemption_limit: 100000 # ₹1 lakh LTCG exemption per year
-  holding_period_days: 365    # 1 year for long-term classification
-  tax_loss_harvesting: true   # Enable tax loss harvesting
-
-# Advanced ML Algorithms Configuration
+  short_term_rate: 0.15
+  long_term_rate: 0.1
+  ltcg_exemption_limit: 100000
+  holding_period_days: 365
+  tax_loss_harvesting: true
 ml_algorithms:
   enabled: true
-  
-  # PCA (Principal Component Analysis)
   pca:
     enabled: false
-    weight: 0.25              # Weight in ensemble (25%)
-    n_components: 5           # Number of principal components
-    lookback_period: 50       # Historical data points for PCA
-    variance_threshold: 0.95  # Cumulative variance to retain
-  
-  # ARIMA (AutoRegressive Integrated Moving Average)
+    weight: 0.25
+    n_components: 5
+    lookback_period: 50
+    variance_threshold: 0.95
   arima:
     enabled: true
-    weight: 0.33              # Weight in ensemble (25%)
-    order: [1, 1, 1]          # ARIMA(p,d,q) parameters
-    seasonal_order: [1, 1, 1, 12]  # Seasonal ARIMA parameters
-    forecast_steps: 5         # Number of steps to forecast ahead
-    confidence_level: 0.95    # Confidence interval
-  
-  # GARCH (Generalized Autoregressive Conditional Heteroskedasticity)
+    weight: 0.33
+    order:
+    - 1
+    - 1
+    - 1
+    seasonal_order:
+    - 1
+    - 1
+    - 1
+    - 12
+    forecast_steps: 5
+    confidence_level: 0.95
   garch:
     enabled: true
-    weight: 0.33              # Weight in ensemble (25%)
-    p: 1                      # GARCH lag order
-    q: 1                      # ARCH lag order
-    volatility_threshold: 0.02 # Volatility threshold for signals
-    forecast_horizon: 5       # Days ahead for volatility forecast
-  
-  # Ensemble configuration
+    weight: 0.33
+    p: 1
+    q: 1
+    volatility_threshold: 0.02
+    forecast_horizon: 5
   ensemble:
     enabled: true
-    weight: 0.33              # Weight for traditional indicators (25%)
-    combination_method: "weighted_average"  # weighted_average, voting, stacking
-    minimum_algorithms: 2     # Minimum algorithms needed for signal
-    confidence_threshold: 0.6 # Minimum confidence for trade execution
-
-# Multi-timeframe configuration
-timeframes: ["1d", "15m", "1h", "1mo", "1m"]  # All timeframes to analyze
-primary_timeframe: "1d"  # Used for data structure (not for signals anymore)
-
-# Majority voting configuration
+    weight: 0.33
+    combination_method: weighted_average
+    minimum_algorithms: 1
+    confidence_threshold: 0.6
+  news_sentiment:
+    enabled: true
+    weight: 0.34
+    csv_path: data/news.csv
+    window_hours: 24
+    min_items: 3
+    bullish_threshold: 0.25
+    bearish_threshold: -0.25
+    ticker: ''
+timeframes:
+- 1d
+- 15m
+- 1h
+- 1mo
+- 1m
+primary_timeframe: 1d
 majority_voting:
   enabled: true
-  minimum_timeframes: 1  # Minimum timeframes needed for a signal
-  require_majority: false  # Allow any timeframe to generate signals (for demo)
-  weight_by_strength: true  # Weight votes by signal strength
-
-# Strategy parameters with configurable rolling windows
+  minimum_timeframes: 1
+  require_majority: false
+  weight_by_strength: true
 strategy_params:
-  # Moving Average parameters
-  fast_ma_windows: [5, 10, 15, 20]
-  slow_ma_windows: [20, 30, 50, 100]
-  
-  # RSI parameters
-  rsi_periods: [14, 21]
+  fast_ma_windows:
+  - 5
+  - 10
+  - 15
+  - 20
+  slow_ma_windows:
+  - 20
+  - 30
+  - 50
+  - 100
+  rsi_periods:
+  - 14
+  - 21
   rsi_oversold: 30
   rsi_overbought: 70
-  
-  # Bollinger Bands
-  bb_periods: [20, 30]
-  bb_std_devs: [2.0, 2.5]
-  
-  # ATR periods
-  atr_periods: [14, 21]
-  
-  # Support/Resistance lookback periods
-  support_resistance_periods: [20, 30, 50]
-  
-  # Ichimoku parameters
-  ichimoku_conversion: [9, 12]
-  ichimoku_base: [26, 30]
-  ichimoku_span_b: [52, 60]
-  
-  # MSE (Mean Squared Error) periods
-  mse_periods: [20, 30]
-  
-  # Signal confirmation requirements
-  min_timeframes_agree: 1  # Minimum timeframes that must agree for a signal
-  signal_strength_threshold: 0.5  # Minimum signal strength (0-1)
-
+  bb_periods:
+  - 20
+  - 30
+  bb_std_devs:
+  - 2.0
+  - 2.5
+  atr_periods:
+  - 14
+  - 21
+  support_resistance_periods:
+  - 20
+  - 30
+  - 50
+  ichimoku_conversion:
+  - 9
+  - 12
+  ichimoku_base:
+  - 26
+  - 30
+  ichimoku_span_b:
+  - 52
+  - 60
+  mse_periods:
+  - 20
+  - 30
+  min_timeframes_agree: 1
+  signal_strength_threshold: 0.5
 alpaca:
-  key_id: "PKOOFJDSJAPGDGTOFIQ9"
-  secret_key: "fxMORdYJ4pelOfuMSR7zkbPlghS9c6QOdNPzw5fv"
-  base_url: "https://paper-api.alpaca.markets"
+  key_id: PKOOFJDSJAPGDGTOFIQ9
+  secret_key: fxMORdYJ4pelOfuMSR7zkbPlghS9c6QOdNPzw5fv
+  base_url: https://paper-api.alpaca.markets

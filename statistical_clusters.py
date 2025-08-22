@@ -10,6 +10,15 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+# Optional import for news provider (non-fatal if missing)
+try:
+    from news.news_provider import NewsProvider  # type: ignore
+
+    _NEWS_AVAILABLE = True
+except Exception:
+    NewsProvider = None  # type: ignore
+    _NEWS_AVAILABLE = False
+
 # Statistical libraries
 try:
     from statsmodels.tsa.stattools import adfuller, kpss, grangercausalitytests
@@ -120,7 +129,7 @@ class StatisticalClusters:
         else:
             weights = self.cluster_weights
 
-        # Calculate weighted scores
+    # Calculate weighted scores
         buy_score = 0.0
         sell_score = 0.0
         hold_score = 0.0
@@ -140,6 +149,16 @@ class StatisticalClusters:
                 sell_score += weighted_strength
             else:
                 hold_score += weighted_strength
+
+        # Optionally blend in news sentiment before normalization
+        buy_score, sell_score, hold_score, total_weight = self._inject_news_adjustment(
+            data=signals[self.active_clusters[0]].get("data_frame") if isinstance(signals.get(self.active_clusters[0], {}), dict) else None,
+            df_hint=None,
+            buy_score=buy_score,
+            sell_score=sell_score,
+            hold_score=hold_score,
+            total_weight=total_weight,
+        )
 
         # Normalize scores
         if total_weight > 0:
@@ -168,6 +187,78 @@ class StatisticalClusters:
             "sell_score": sell_score,
             "hold_score": hold_score,
         }
+
+    def _inject_news_adjustment(
+        self,
+        data: Optional[pd.DataFrame],
+        df_hint: Optional[pd.DataFrame],
+        buy_score: float,
+        sell_score: float,
+        hold_score: float,
+        total_weight: float,
+    ) -> tuple[float, float, float, float]:
+        """Optionally adjust scores using aggregated news sentiment.
+
+        This only runs when cluster_strategy.news_integration.enabled is true.
+        It does not override cluster votes; it adds a small weighted bias based on
+        recent average sentiment.
+        """
+        try:
+            ns_cfg = (
+                self.config.get("cluster_strategy", {}).get("news_integration", {})
+            )
+            if not ns_cfg or not ns_cfg.get("enabled", False):
+                return buy_score, sell_score, hold_score, total_weight
+
+            if not _NEWS_AVAILABLE:
+                return buy_score, sell_score, hold_score, total_weight
+
+            # Determine reference DataFrame and timestamp
+            ref_df = data if isinstance(data, pd.DataFrame) else df_hint
+            if ref_df is None or len(ref_df.index) == 0:
+                return buy_score, sell_score, hold_score, total_weight
+
+            ts = pd.to_datetime(ref_df.index[-1])
+            try:
+                ts = ts.tz_convert("UTC")  # if tz-aware
+            except Exception:
+                try:
+                    ts = ts.tz_localize("UTC")
+                except Exception:
+                    pass
+
+            provider = NewsProvider(ns_cfg.get("csv_path", "data/news.csv"))
+            agg = provider.aggregate_sentiment(
+                ts,
+                int(ns_cfg.get("window_hours", 24)),
+                self.config.get("ticker"),
+            )
+            avg = float(agg.get("avg", 0.0))
+            n = int(agg.get("count", 0))
+            if n < int(ns_cfg.get("min_items", 3)):
+                return buy_score, sell_score, hold_score, total_weight
+
+            bull = float(ns_cfg.get("bullish_threshold", 0.25))
+            bear = float(ns_cfg.get("bearish_threshold", -0.25))
+            w = float(ns_cfg.get("weight", 0.15))  # modest default influence
+            # Clamp strength to [0, 1]
+            strength = min(abs(avg), 1.0) * w
+
+            # Add a news pseudo-vote into the total weight and respective score
+            if avg >= bull:
+                buy_score += strength
+                total_weight += w
+            elif avg <= bear:
+                sell_score += strength
+                total_weight += w
+            else:
+                hold_score += strength * 0.5
+                total_weight += w * 0.5
+
+            return buy_score, sell_score, hold_score, total_weight
+        except Exception:
+            # Silent failure to keep robustness
+            return buy_score, sell_score, hold_score, total_weight
 
 
 class MeanReversionCluster:

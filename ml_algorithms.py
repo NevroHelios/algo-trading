@@ -8,6 +8,15 @@ import pandas as pd
 import warnings
 from typing import Dict, Any, Optional
 
+# Optional import for news provider (kept optional to avoid hard dependency)
+try:
+    from news.news_provider import NewsProvider  # type: ignore
+
+    _NEWS_AVAILABLE = True
+except Exception:
+    NewsProvider = None  # type: ignore
+    _NEWS_AVAILABLE = False
+
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore")
 
@@ -321,6 +330,59 @@ class GARCHSignalGenerator:
             }
 
 
+class NewsSentimentSignalGenerator:
+    """News-based sentiment signal using VADER or a tiny fallback lexicon.
+
+    Config keys (under ml_algorithms.news_sentiment):
+      - enabled: bool
+      - csv_path: path to CSV for backtests (default: data/news.csv)
+      - window_hours: aggregation window (default: 24)
+      - min_items: minimum number of articles required (default: 3)
+      - bullish_threshold: avg compound threshold for BUY (default: 0.25)
+      - bearish_threshold: avg compound threshold for SELL (default: -0.25)
+      - ticker: optional ticker filter
+    """
+
+    def __init__(self, config: Dict[str, Any]):
+        self.window_hours = int(config.get("window_hours", 24))
+        self.bullish_threshold = float(config.get("bullish_threshold", 0.25))
+        self.bearish_threshold = float(config.get("bearish_threshold", -0.25))
+        self.min_items = int(config.get("min_items", 3))
+        self.ticker = config.get("ticker")
+        self.provider = (
+            NewsProvider(config.get("csv_path", "data/news.csv"))
+            if _NEWS_AVAILABLE
+            else None
+        )
+
+    def generate_signal(self, df: pd.DataFrame, current_index: int) -> Dict[str, Any]:
+        if self.provider is None or len(df.index) == 0:
+            return {"signal": "HOLD", "strength": 0.0, "reason": "News module unavailable"}
+
+        if current_index < 0 or current_index >= len(df.index):
+            return {"signal": "HOLD", "strength": 0.0, "reason": "Invalid index"}
+
+        # Resolve timestamp from index
+        try:
+            ts = pd.to_datetime(df.index[current_index]).tz_convert("UTC")
+        except Exception:
+            ts = pd.to_datetime(df.index[current_index]).tz_localize("UTC", nonexistent="shift_forward", ambiguous="NaT")
+
+        agg = self.provider.aggregate_sentiment(ts, self.window_hours, self.ticker)
+        avg = float(agg.get("avg", 0.0))
+        n = int(agg.get("count", 0))
+
+        if n < self.min_items:
+            return {"signal": "HOLD", "strength": 0.0, "reason": f"Only {n} news in {self.window_hours}h"}
+
+        strength = min(abs(avg), 1.0)
+        if avg >= self.bullish_threshold:
+            return {"signal": "BUY", "strength": strength, "reason": f"News avg: {avg:.2f} ({n} items)"}
+        if avg <= self.bearish_threshold:
+            return {"signal": "SELL", "strength": strength, "reason": f"News avg: {avg:.2f} ({n} items)"}
+        return {"signal": "HOLD", "strength": 0.0, "reason": f"Neutral news: {avg:.2f} ({n} items)"}
+
+
 class MLEnsemble:
     """Ensemble class to combine ML algorithms"""
 
@@ -341,6 +403,17 @@ class MLEnsemble:
         if config.get("garch", {}).get("enabled", False):
             self.algorithms["garch"] = GARCHSignalGenerator(config["garch"])
             self.weights["garch"] = config["garch"].get("weight", 0.25)
+
+        # News Sentiment (optional)
+        if config.get("news_sentiment", {}).get("enabled", False):
+            try:
+                self.algorithms["news"] = NewsSentimentSignalGenerator(
+                    config.get("news_sentiment", {})
+                )
+                self.weights["news"] = config.get("news_sentiment", {}).get("weight", 0.25)
+            except Exception as e:
+                # Keep system resilient; just skip if news can't initialize
+                print(f"Warning: NewsSentiment init failed: {e}")
 
         # Normalize weights
         total_weight = sum(self.weights.values())

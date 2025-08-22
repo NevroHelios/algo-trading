@@ -1,3 +1,4 @@
 pandas
 yfinance
 pyyaml
+vaderSentiment>=3.3.2

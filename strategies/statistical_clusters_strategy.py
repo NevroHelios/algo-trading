@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any
 from statistical_clusters import StatisticalClusters
+from datetime import timezone
 
 
 class StatisticalClustersStrategy:
@@ -76,6 +77,31 @@ class StatisticalClustersStrategy:
         print(f"💰 Market Data:")
         print(f"   Current Price: ₹{current_price:.2f}")
         print(f"   Price Change: {price_change:+.2f}%")
+
+        # Optional: Show aggregated news sentiment (does not affect decision)
+        try:
+            ml_cfg = self.config.get("ml_algorithms", {})
+            news_cfg = ml_cfg.get("news_sentiment", {})
+            if news_cfg.get("enabled", False):
+                from news.news_provider import NewsProvider  # lazy import, optional
+
+                provider = NewsProvider(news_cfg.get("csv_path", "data/news.csv"))
+                # Use the last index timestamp as the reference
+                ts = pd.to_datetime(df.index[-1])
+                if ts.tzinfo is None:
+                    ts = ts.tz_localize(timezone.utc)
+                else:
+                    ts = ts.tz_convert(timezone.utc)
+                agg = provider.aggregate_sentiment(
+                    ts,
+                    news_cfg.get("window_hours", 24),
+                    self.config.get("ticker", None),
+                )
+                print("\n📰 News Sentiment (last {}h):".format(news_cfg.get("window_hours", 24)))
+                print("   Average: {:.2f} | Items: {}".format(agg.get("avg", 0.0), agg.get("count", 0)))
+        except Exception as _e:
+            # Keep resilient; news is optional
+            pass
 
         # Show active clusters and their signals
         print(f"\n🔍 Active Clusters Analysis:")
