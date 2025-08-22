@@ -1,13 +1,15 @@
 data_source: yahoo
 mode: paper
 ticker: RELIANCE.NS
-start_date: '2023-06-01'
-end_date: '2024-08-22'
+start_date: "2023-06-01"
+end_date: "2024-08-22"
 initial_cash: 200000
 strategy: statistical_clusters
 cluster_strategy:
   mode: predefined
   predefined_strategy: adaptive_trend
+  # Increase number of clusters for ensemble diversity (set to 100 for tuning)
+  num_clusters: 100
   news_integration:
     enabled: true
     csv_path: data/news.csv
@@ -17,8 +19,8 @@ cluster_strategy:
     bullish_threshold: 0.25
     bearish_threshold: -0.25
   custom_clusters:
-  - cluster_1
-  - cluster_7
+    - cluster_1
+    - cluster_7
   cluster_weights:
     cluster_1: 0.25
     cluster_2: 0.2
@@ -109,9 +111,9 @@ cluster_4_multi_factor:
     fama_french: true
     carhart_momentum: true
     custom_factors:
-    - momentum
-    - value
-    - quality
+      - momentum
+      - value
+      - quality
   bayesian:
     enabled: true
     prior_precision: 1.0
@@ -186,17 +188,17 @@ cluster_7_validation:
 predefined_strategies:
   pairs_trading:
     active_clusters:
-    - cluster_1
-    - cluster_7
+      - cluster_1
+      - cluster_7
     description: Mean reversion with robust validation
     cluster_weights:
       cluster_1: 0.9
       cluster_7: 0.1
   volatility_breakout:
     active_clusters:
-    - cluster_3
-    - cluster_5
-    - cluster_7
+      - cluster_3
+      - cluster_5
+      - cluster_7
     description: Volatility trading with regime detection
     cluster_weights:
       cluster_3: 0.7
@@ -204,17 +206,17 @@ predefined_strategies:
       cluster_7: 0.1
   factor_portfolio:
     active_clusters:
-    - cluster_4
-    - cluster_7
+      - cluster_4
+      - cluster_7
     description: Multi-factor statistical arbitrage
     cluster_weights:
       cluster_4: 0.9
       cluster_7: 0.1
   adaptive_trend:
     active_clusters:
-    - cluster_2
-    - cluster_5
-    - cluster_7
+      - cluster_2
+      - cluster_5
+      - cluster_7
     description: Momentum with adaptive regime detection
     cluster_weights:
       cluster_2: 0.6
@@ -253,14 +255,14 @@ ml_algorithms:
     enabled: true
     weight: 0.33
     order:
-    - 1
-    - 1
-    - 1
+      - 1
+      - 1
+      - 1
     seasonal_order:
-    - 1
-    - 1
-    - 1
-    - 12
+      - 1
+      - 1
+      - 1
+      - 12
     forecast_steps: 5
     confidence_level: 0.95
   garch:
@@ -284,13 +286,13 @@ ml_algorithms:
     min_items: 3
     bullish_threshold: 0.25
     bearish_threshold: -0.25
-    ticker: ''
+    ticker: ""
 timeframes:
-- 1d
-- 15m
-- 1h
-- 1mo
-- 1m
+  - 1d
+  - 15m
+  - 1h
+  - 1mo
+  - 1m
 primary_timeframe: 1d
 majority_voting:
   enabled: true
@@ -299,45 +301,45 @@ majority_voting:
   weight_by_strength: true
 strategy_params:
   fast_ma_windows:
-  - 5
-  - 10
-  - 15
-  - 20
+    - 5
+    - 10
+    - 15
+    - 20
   slow_ma_windows:
-  - 20
-  - 30
-  - 50
-  - 100
+    - 20
+    - 30
+    - 50
+    - 100
   rsi_periods:
-  - 14
-  - 21
+    - 14
+    - 21
   rsi_oversold: 30
   rsi_overbought: 70
   bb_periods:
-  - 20
-  - 30
+    - 20
+    - 30
   bb_std_devs:
-  - 2.0
-  - 2.5
+    - 2.0
+    - 2.5
   atr_periods:
-  - 14
-  - 21
+    - 14
+    - 21
   support_resistance_periods:
-  - 20
-  - 30
-  - 50
+    - 20
+    - 30
+    - 50
   ichimoku_conversion:
-  - 9
-  - 12
+    - 9
+    - 12
   ichimoku_base:
-  - 26
-  - 30
+    - 26
+    - 30
   ichimoku_span_b:
-  - 52
-  - 60
+    - 52
+    - 60
   mse_periods:
-  - 20
-  - 30
+    - 20
+    - 30
   min_timeframes_agree: 1
   signal_strength_threshold: 0.5
 alpaca:

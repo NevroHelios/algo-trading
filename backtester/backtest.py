@@ -23,9 +23,8 @@ def run_backtest(config_path="config/config.yaml"):
         print(f"Starting Statistical Clusters backtest:")
         print(f"Initial Capital: ₹{config['initial_cash']:,.2f}")
 
-        # Run statistical clusters backtest
-        run_statistical_clusters_backtest(strategy, data, config)
-
+        # Run statistical clusters backtest and return portfolio for programmatic use
+        return run_statistical_clusters_backtest(strategy, data, config)
     else:
         # Original multi-timeframe strategy
         strategy_config = config["strategy_params"].copy()
@@ -39,8 +38,8 @@ def run_backtest(config_path="config/config.yaml"):
         strat_module = importlib.import_module(f"strategies.{config['strategy']}")
         strategy = strat_module.MyStrategy(strategy_config)
 
-        # Run original backtest
-        run_original_backtest(strategy, data, config)
+        # Run original backtest and return portfolio for programmatic use
+        return run_original_backtest(strategy, data, config)
 
 
 def run_statistical_clusters_backtest(strategy, data, config):
@@ -83,6 +82,8 @@ def run_statistical_clusters_backtest(strategy, data, config):
         portfolio.summary()
     else:
         print(f"Live trading session completed")
+    # Return portfolio for programmatic inspection / tuning
+    return portfolio
 
 
 def run_original_backtest(strategy, data, config):
@@ -129,3 +130,5 @@ def run_original_backtest(strategy, data, config):
     else:
         print(f"Live trading session completed:")
         print(f"Orders sent: {trades_executed}")
+    # Return portfolio for programmatic inspection / tuning
+    return portfolio

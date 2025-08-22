@@ -53,20 +53,69 @@ class StatisticalClusters:
         self.custom_clusters = self.cluster_config.get("custom_clusters", [])
         self.cluster_weights = self.cluster_config.get("cluster_weights", {})
 
-        # Initialize clusters
-        self.clusters = {
-            "cluster_1": MeanReversionCluster(
-                config.get("cluster_1_mean_reversion", {})
-            ),
-            "cluster_2": MomentumCluster(config.get("cluster_2_momentum", {})),
-            "cluster_3": VolatilityCluster(config.get("cluster_3_volatility", {})),
-            "cluster_4": MultiFactorCluster(config.get("cluster_4_multi_factor", {})),
-            "cluster_5": RegimeDetectionCluster(
-                config.get("cluster_5_regime_detection", {})
-            ),
-            "cluster_6": ExecutionCluster(config.get("cluster_6_execution", {})),
-            "cluster_7": ValidationCluster(config.get("cluster_7_validation", {})),
-        }
+        # Support for dynamic number of clusters (default to 7 for backward compatibility)
+        self.num_clusters = int(self.cluster_config.get("num_clusters", 7))
+
+        # Initialize clusters dynamically. We recycle the existing cluster classes
+        # and create parameter variations so the system can run with large ensembles
+        # (e.g. 100 clusters) without requiring new algorithm implementations.
+        base_types = [
+            MeanReversionCluster,
+            MomentumCluster,
+            VolatilityCluster,
+            MultiFactorCluster,
+            RegimeDetectionCluster,
+            ExecutionCluster,
+            ValidationCluster,
+        ]
+
+        self.clusters = {}
+        for i in range(1, max(1, self.num_clusters) + 1):
+            cls = base_types[(i - 1) % len(base_types)]
+            # Create a per-cluster config by copying relevant base config if present
+            type_name = cls.__name__
+            # Try to find a config block matching conventional names, else use empty
+            specific_key = None
+            if isinstance(cls, type):
+                # Map known classes to config keys used previously
+                mapping = {
+                    'MeanReversionCluster': 'cluster_1_mean_reversion',
+                    'MomentumCluster': 'cluster_2_momentum',
+                    'VolatilityCluster': 'cluster_3_volatility',
+                    'MultiFactorCluster': 'cluster_4_multi_factor',
+                    'RegimeDetectionCluster': 'cluster_5_regime_detection',
+                    'ExecutionCluster': 'cluster_6_execution',
+                    'ValidationCluster': 'cluster_7_validation',
+                }
+                specific_key = mapping.get(type_name)
+
+            base_cfg = config.get(specific_key, {}) if specific_key else {}
+
+            # Slight deterministic variation per cluster to create diversity
+            var_cfg = dict(base_cfg)
+            # Example variations: perturb lookback/thresholds where present
+            try:
+                # Add a small offset derived from index to any integer lookback-like keys
+                offset = (i % 50) - 25
+                if 'lookback' in var_cfg and isinstance(var_cfg.get('lookback'), int):
+                    var_cfg['lookback'] = max(5, var_cfg.get('lookback') + offset)
+                if 'lookback_period' in var_cfg and isinstance(var_cfg.get('lookback_period'), int):
+                    var_cfg['lookback_period'] = max(5, var_cfg.get('lookback_period') + offset)
+                if 'entry_threshold' in var_cfg and isinstance(var_cfg.get('entry_threshold'), (int, float)):
+                    var_cfg['entry_threshold'] = max(0.1, float(var_cfg.get('entry_threshold')) * (1 + (offset/200)))
+            except Exception:
+                pass
+
+            cluster_name = f"cluster_{i}"
+            try:
+                self.clusters[cluster_name] = cls(var_cfg)
+            except Exception:
+                # Fallback: instantiate with empty config
+                try:
+                    self.clusters[cluster_name] = cls({})
+                except Exception:
+                    # Last resort: simple placeholder that always HOLDs
+                    self.clusters[cluster_name] = ValidationCluster({})
 
         # Active clusters based on mode
         self.active_clusters = self._get_active_clusters()
@@ -75,6 +124,7 @@ class StatisticalClusters:
         print(f"   Mode: {self.mode}")
         if self.mode == "predefined":
             print(f"   Strategy: {self.predefined_strategy}")
+        print(f"   Num clusters: {len(self.clusters)}")
         print(f"   Active clusters: {self.active_clusters}")
 
     def _get_active_clusters(self) -> List[str]:

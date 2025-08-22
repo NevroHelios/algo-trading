@@ -16,4 +16,15 @@ dependencies = [
     "types-pyyaml>=6.0.12.20250809",
     "yfinance>=0.2.65",
     "vaderSentiment>=3.3.2",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "torchaudio>=2.5.0",
+    "xgboost>=2.0.0",
+    "lightgbm>=4.0.0",
+    "filterpy>=1.4.5",
 ]
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu121"
+priority = 1
